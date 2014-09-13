@@ -1,7 +1,7 @@
 <!DOCTYPE php>
 <head>
     <style>
-        .mondrian {
+        svg {
             border: 4px solid black;
         }
     </style>
@@ -24,7 +24,11 @@ function randomInt(min, max) {
     Calculates the intersection point of two lines
     result contains x,y as well as two flags. both flags must be true for the lines to intersect
  */
-function checkLineIntersection(line1point1, line1point2, line2point1, line2point2) {
+function checkLineIntersection(line1, line2) {
+    var line1point1 = line1.p1;
+    var line1point2 = line1.p2;
+    var line2point1 = line2.p1;
+    var line2point2 = line2.p2;
     // if the lines intersect, the result contains the x and y of the intersection (treating the lines as infinite) and booleans for whether line segment 1 or line segment 2 contain the point
     var denominator, a, b, numerator1, numerator2, result = {
         x: null,
@@ -77,21 +81,37 @@ function generateRandomPoint(limx, limy) {
     return {x: randomInt(0, limx), y: randomInt(0, limy)};
 }
 
+function getDistance(point1, point2) {
+    return Math.sqrt( Math.pow(point1.x - point2.x, 2) + Math.pow(point1.y - point2.y) );
+}
+
 function makeMondrian(numPartitions, maxWidth, maxHeight) {
     var container = d3.select(".mondrian").append("svg").attr("width", maxWidth).attr("height", maxHeight);
     var drawnLines = [];
+    var line;
 
+    // make the partitions
     for (var i = 0; i < numPartitions; i ++ ) {
-        var line;
-        if (randomInt(0, 9) >= 9) {
+        if (randomInt(0, 9) >= 5) {
             line = makeVerticalLine(randomInt(0, maxWidth), maxHeight);
         } else {
             line = makeHorizontalLine(maxWidth, randomInt(0, maxHeight));        
         }
-        console.log(line);
-        console.log(maxWidth);
-        console.log(maxHeight);
+        for (var i = 0; i < drawnLines.length; i++) {
+            var previous_line = drawnLines[i];
+            var result = checkLineIntersection(previous_line, line);
+            // does it intersect?
+            if (result.onLine1 && result.onLine2) {
+                // randomly pick an endpoint
+                if (Math.random() > 0.5) {
+                    line.p1 = {x: result.x, y: result.y};
+                } else {
+                    line.p2 = {x: result.x, y: result.y};
+                }
+            }
+        }
         makeLine(container, line.p1, line.p2, 4, "black");
+        drawnLines.push(line);
     }
 }
 
@@ -107,10 +127,6 @@ function makeLine(lineContainer, point1, point2, width, color) {
     </div>
 </body>
 <script>
-makeMondrian(randomInt(4, 16), maxWidth, maxHeight);
-// var point1 = {x: 5, y: 5};
-// var point2 = {x: 50, y: 50};
-// var container = d3.select(".mondrian").append("svg").attr("width", maxWidth).attr("height", maxHeight);
-// var line = makeLine(container, point1, point2, 4, "black");
+makeMondrian(randomInt(4, 8), maxWidth, maxHeight);
 
 </script>
