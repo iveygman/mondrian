@@ -1,0 +1,99 @@
+<!DOCTYPE php>
+<head>
+    <style>
+        .mondrian {
+            border: 4px solid black;
+        }
+    </style>
+</head>
+<script src='jquery-1.11.1.min.js'></script>
+<script src='d3.min.js'></script>
+<script>
+
+var maxWidth = window.innerWidth * 0.9;
+var maxHeight = window.innerHeight * 0.9;
+
+/**
+    Returns random integer between min and max
+ */
+function randomInt(min, max) {
+    return Math.floor((Math.random() * max) + min);
+}
+
+/**
+    Calculates the intersection point of two lines
+    result contains x,y as well as two flags. both flags must be true for the lines to intersect
+ */
+function checkLineIntersection(line1point1, line1point2, line2point1, line2point2) {
+    // if the lines intersect, the result contains the x and y of the intersection (treating the lines as infinite) and booleans for whether line segment 1 or line segment 2 contain the point
+    var denominator, a, b, numerator1, numerator2, result = {
+        x: null,
+        y: null,
+        onLine1: false,
+        onLine2: false
+    };
+    denominator = ((line2point2.y - line2point1.y) * (line1point2.x - line1point1.x)) - ((line2point2.x - line2point1.x) * (line1point2.y - line1point1.y));
+    if (denominator == 0) {
+        return result;
+    }
+    a = line1point1.y - line2point1.y;
+    b = line1point1.x - line2point1.x;
+    numerator1 = ((line2point2.x - line2point1.x) * a) - ((line2point2.y - line2point1.y) * b);
+    numerator2 = ((line1point2.x - line1point1.x) * a) - ((line1point2.y - line1point1.y) * b);
+    a = numerator1 / denominator;
+    b = numerator2 / denominator;
+
+    // if we cast these lines infinitely in both directions, they intersect here:
+    result.x = line1point1.x + (a * (line1point2.x - line1point1.x));
+    result.y = line1point1.y + (a * (line1point2.y - line1point1.y));
+/*
+        // it is worth noting that this should be the same as:
+        x = line2point1.x + (b * (line2point2.x - line2point1.x));
+        y = line2point1.x + (b * (line2point2.y - line2point1.y));
+*/
+    // if line1 is a segment and line2 is infinite, they intersect if:
+    if (a > 0 && a < 1) {
+        result.onLine1 = true;
+    }
+    // if line2 is a segment and line1 is infinite, they intersect if:
+    if (b > 0 && b < 1) {
+        result.onLine2 = true;
+    }
+    // if line1 and line2 are segments, they intersect if both of the above are true
+    return result;
+}
+
+function generateRandomPoint(limx, limy) {
+    return {x: randomInt(0, limx), y: randomInt(0, limy)};
+}
+
+function makeMondrian(numPartitions, maxWidth, maxHeight) {
+    var container = d3.select(".mondrian").append("svg").attr("width", maxWidth).attr("height", maxHeight);
+    var drawnLines = [];
+
+    for (var i = 0; i < numPartitions; i ++ ) {
+        var point1 = generateRandomPoint(maxWidth, maxHeight);
+        var point2 = generateRandomPoint(maxWidth, maxHeight);
+        makeLine(container, point1, point2, 4, "black");
+    }
+}
+
+function makeLine(lineContainer, point1, point2, width, color) {
+    lineContainer.append("line").attr("x1", point1.x).attr("y1", point1.y).attr("x2", point2.x).attr("y2", point2.y)
+                                .attr("stroke-width", width).attr("stroke", color);
+    return lineContainer;
+}
+
+</script>
+<body>
+    <div class='mondrian'>
+    </div>
+</body>
+<script>
+makeMondrian(randomInt(4, 16), maxWidth, maxHeight);
+// var point1 = {x: 5, y: 5};
+// var point2 = {x: 50, y: 50};
+// var container = d3.select(".mondrian").append("svg").attr("width", maxWidth).attr("height", maxHeight);
+// var line = makeLine(container, point1, point2, 4, "black");
+
+</script>
