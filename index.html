@@ -63,6 +63,16 @@ function checkLineIntersection(line1point1, line1point2, line2point1, line2point
     return result;
 }
 
+function makeVerticalLine(x_coord, maxy) {
+    return {p1: {x: x_coord, y: 0}, 
+            p2: {x: x_coord, y: maxy}};
+}
+
+function makeHorizontalLine(maxx, y_coord) {
+    return {p1: {x: 0, y: y_coord}, 
+            p2: {x: maxx, y: y_coord}};
+}
+
 function generateRandomPoint(limx, limy) {
     return {x: randomInt(0, limx), y: randomInt(0, limy)};
 }
@@ -72,9 +82,16 @@ function makeMondrian(numPartitions, maxWidth, maxHeight) {
     var drawnLines = [];
 
     for (var i = 0; i < numPartitions; i ++ ) {
-        var point1 = generateRandomPoint(maxWidth, maxHeight);
-        var point2 = generateRandomPoint(maxWidth, maxHeight);
-        makeLine(container, point1, point2, 4, "black");
+        var line;
+        if (randomInt(0, 9) >= 9) {
+            line = makeVerticalLine(randomInt(0, maxWidth), maxHeight);
+        } else {
+            line = makeHorizontalLine(maxWidth, randomInt(0, maxHeight));        
+        }
+        console.log(line);
+        console.log(maxWidth);
+        console.log(maxHeight);
+        makeLine(container, line.p1, line.p2, 4, "black");
     }
 }
 
