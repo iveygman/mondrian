@@ -6,7 +6,7 @@
         }
     </style>
 </head>
-<script src='jquery-1.11.1.min.js'></script>
+<script src='jquery-1.11.min.js'></script>
 <script src='d3.min.js'></script>
 <script>
 
@@ -77,6 +77,10 @@ function makeHorizontalLine(maxx, y_coord) {
             p2: {x: maxx, y: y_coord}};
 }
 
+function pointToString(point) {
+    return "(" + point.x + "," + point.y + ")";
+}
+
 function generateRandomPoint(limx, limy) {
     return {x: randomInt(0, limx), y: randomInt(0, limy)};
 }
@@ -85,14 +89,28 @@ function getDistance(point1, point2) {
     return Math.sqrt( Math.pow(point1.x - point2.x, 2) + Math.pow(point1.y - point2.y) );
 }
 
+/**
+    Draws a rectangle of the desired size and fill shape
+        rect contains an upper left and lower right x,y point defining its borders
+ */
+function drawRectangle(container, rect, color) {
+    var xStart = rect.p1.x;
+    var yStart = rect.p1.y;
+    var width = xStart + rect.p2.x;
+    var height = yStart + rect.p2.y;
+    container.append("rect").attr("x", xStart).attr("y", yStart).attr("width", width).attr("height", height).attr("fill", color);
+}
+
 function makeMondrian(numPartitions, maxWidth, maxHeight) {
     var container = d3.select(".mondrian").append("svg").attr("width", maxWidth).attr("height", maxHeight);
     var drawnLines = [];
+    var intersectionPoints = [{x:0,y:0}, {x:maxWidth,y:0}, {x:maxWidth,y:maxHeight}];    // list of all points where two lines intersect
     var line;
 
     // make the partitions
     for (var i = 0; i < numPartitions; i ++ ) {
-        if (randomInt(0, 9) >= 5) {
+        // choose horizontal or vertical at random
+        if (Math.random() > 0.5) {
             line = makeVerticalLine(randomInt(0, maxWidth), maxHeight);
         } else {
             line = makeHorizontalLine(maxWidth, randomInt(0, maxHeight));        
@@ -102,6 +120,8 @@ function makeMondrian(numPartitions, maxWidth, maxHeight) {
             var result = checkLineIntersection(previous_line, line);
             // does it intersect?
             if (result.onLine1 && result.onLine2) {
+                result.x = Math.round(result.x);
+                result.y = Math.round(result.y);
                 // randomly pick an endpoint
                 if (Math.random() > 0.5) {
                     line.p1 = {x: result.x, y: result.y};
@@ -112,6 +132,121 @@ function makeMondrian(numPartitions, maxWidth, maxHeight) {
         }
         makeLine(container, line.p1, line.p2, 4, "black");
         drawnLines.push(line);
+        intersectionPoints.push(line.p1);
+        intersectionPoints.push(line.p2);
+    }
+
+    // sort intersectionPoints
+    intersectionPoints.sort(function (a,b) {
+        if (b.y == a.y && b.x == a.x)   return 0;
+        if (b.y > a.y)  return -1;
+        if (b.y <= a.y) {
+            if (b.x > a.x)  return -1;
+            return 1;
+        }
+    });
+
+    // debug -- draw points at each intersection
+    for (var i = 0; i < intersectionPoints.length; i++) {
+        var point = intersectionPoints[i];
+        container.append("circle").attr("cx", point.x).attr("cy", point.y).attr("r", 5);
+        container.append("text").attr("dx", point.x).attr("dy", point.y+10).text(pointToString(point));
+    }
+
+    // a rectangle shall be defined as a pair of points, upper-left and lower-right 
+    var smallestRectangles = [];
+    var ignorePoints = [];
+    for (var i = 0; i < intersectionPoints.length; i++) {
+        var possibleP1 = intersectionPoints[i];
+
+        // check if already in smallestRectangles
+        var contains = false;
+        smallestRectangles.forEach(function (p) { if (p.p1 == possibleP1) contains = true; } );
+        if (contains) {
+            ignorePoints.push(possibleP1);
+            console.log("Already have rectangle starting at " + pointToString(possibleP1) + ", skipping");
+            continue;
+        }
+
+        // find next closest intersection point p such that possibleP1.y == p.y and possibleP1.x < p.x
+        var candidatesP = [];
+        intersectionPoints.forEach( function(p) {
+            if (p.y == possibleP1.y && p.x > possibleP1.x) {
+                // check if this is the "top" point in a line
+                var isTopPoint = false;
+                drawnLines.forEach(function(l) {
+                    if (l.p1 == p) {
+                        isTopPoint = true;
+                    }
+                });
+                if (isTopPoint) {
+                    candidatesP.push( p );
+                }
+            }
+        });
+        if (candidatesP.length == 0) {
+            console.log("No candidates for " + pointToString(possibleP1) + ", skipping this point");
+            continue;
+        }
+        candidatesP.sort(function(a,b) {
+            if (Math.abs(a.x - possibleP1.x) > Math.abs(b.x - possibleP1.x)) {
+                return 1;
+            } else {
+                return -1;
+            }
+        });
+        var _P = candidatesP[0];
+        console.log("Closest point to " + pointToString(possibleP1) + " was " + pointToString(_P));
+
+        /*  from _P, find another point P2 such that:
+                1. _P.x == P2.x
+                2. P2 is not already the second point in any rectangle
+                3. P2 is the right-most point on an existing line
+                4. _P.y < P2.y
+                5. P2 is the closest possible point to _P given conditions 1 through 4
+         */
+        var candidatesP2 = [];
+        intersectionPoints.forEach( function(p) {
+            if (_P.x == p.x && _P.y < p.y) {
+                var isRightPoint = false;
+                drawnLines.forEach(function(l) {
+                    if (l.p2 == p) {
+                        isRightPoint = true;
+                    }
+                });
+                var alreadyInRectangles = false;
+                smallestRectangles.forEach(function(r) { if (r.p2 == p) alreadyInRectangles = true; } );
+                if (!alreadyInRectangles && isRightPoint) {
+                    candidatesP2.push(p)
+                }
+            }
+        });
+        // sort
+        candidatesP2.sort(function(a,b) {
+            if (Math.abs(a.x - _P.x) > Math.abs(b.x - _P.x)) {
+                return 1;
+            } else {
+                return -1;
+            }
+        });
+        if (candidatesP2.length == 0) {
+            console.log("No closing point corresponding to rectangle starting at " + pointToString(possibleP1));
+            continue;
+        } else { 
+            console.log(candidatesP2[0]);
+        }
+
+        // okay, we found it
+        var rect = {p1: possibleP1, p2: candidatesP2[0]};
+        smallestRectangles.push(rect);
+    }
+
+    // all rectangles
+    var colorChoices = ["red", "blue", "yellow"];
+    for (var i = 0; i < smallestRectangles.length; i++) {
+        drawRectangle(container, smallestRectangles[i], colorChoices[Math.floor(Math.random() * colorChoices.length)]);
+        console.log("Rectangle at " + pointToString(smallestRectangles[i].p1) + " -- " + pointToString(smallestRectangles[i].p2));
+//         break;
     }
 }
 
