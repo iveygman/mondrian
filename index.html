@@ -10,8 +10,8 @@
 <script src='d3.min.js'></script>
 <script>
 
-var maxWidth = window.innerWidth * 0.9;
-var maxHeight = window.innerHeight * 0.9;
+var maxWidth = Math.round(window.innerWidth * 0.95);
+var maxHeight = Math.round(window.innerHeight * 0.95);
 
 /**
     Returns random integer between min and max
@@ -96,9 +96,21 @@ function getDistance(point1, point2) {
 function drawRectangle(container, rect, color) {
     var xStart = rect.p1.x;
     var yStart = rect.p1.y;
-    var width = xStart + rect.p2.x;
+    var width = xStart + rect.p2.x - 2;
     var height = yStart + rect.p2.y;
     container.append("rect").attr("x", xStart).attr("y", yStart).attr("width", width).attr("height", height).attr("fill", color);
+}
+
+/**
+    Draws text
+ */
+function addText(container, pos, _text) {
+    return container.append("text").attr("dx", pos.x).attr("dy", pos.y+10).text(_text);
+}
+
+function comparePoints(a, b) {
+    if( a.x == b.x) return a.y-b.y;
+    return a.x-b.x;
 }
 
 function makeMondrian(numPartitions, maxWidth, maxHeight) {
@@ -106,6 +118,20 @@ function makeMondrian(numPartitions, maxWidth, maxHeight) {
     var drawnLines = [];
     var intersectionPoints = [{x:0,y:0}, {x:maxWidth,y:0}, {x:maxWidth,y:maxHeight}];    // list of all points where two lines intersect
     var line;
+
+    // draw the border
+    var upperLeft = {x: 0, y: 0};
+    var lowerLeft = {x: 0, y: maxHeight};
+    var upperRight = {x: maxWidth, y: 0};
+    var lowerRight = {x: maxWidth, y: maxHeight};
+    makeLine(container, {p1: upperLeft, p2: upperRight}, 4, "black");
+    makeLine(container, {p1: upperLeft, p2: lowerLeft}, 4, "black");
+    makeLine(container, {p1: lowerLeft, p2: lowerRight}, 4, "black");
+    makeLine(container, {p1: upperRight, p2: lowerRight}, 4, "black");
+    drawnLines.push({p1: upperLeft, p2: upperRight});
+    drawnLines.push({p1: upperLeft, p2: lowerLeft});
+    drawnLines.push({p1: lowerLeft, p2: lowerRight});
+    drawnLines.push({p1: upperRight, p2: lowerRight});
 
     // make the partitions
     for (var i = 0; i < numPartitions; i ++ ) {
@@ -137,22 +163,15 @@ function makeMondrian(numPartitions, maxWidth, maxHeight) {
     }
 
     // sort intersectionPoints
-    intersectionPoints.sort(function (a,b) {
-        if (b.y == a.y && b.x == a.x)   return 0;
-        if (b.y > a.y)  return -1;
-        if (b.y <= a.y) {
-            if (b.x > a.x)  return -1;
-            return 1;
-        }
-    });
-
+    intersectionPoints.sort(comparePoints);
+    console.log(intersectionPoints);
     // debug -- draw points at each intersection
     for (var i = 0; i < intersectionPoints.length; i++) {
         var point = intersectionPoints[i];
         container.append("circle").attr("cx", point.x).attr("cy", point.y).attr("r", 5);
-        container.append("text").attr("dx", point.x).attr("dy", point.y+10).text(pointToString(point));
     }
 
+//     return;
     // a rectangle shall be defined as a pair of points, upper-left and lower-right 
     var smallestRectangles = [];
     var ignorePoints = [];
@@ -174,9 +193,11 @@ function makeMondrian(numPartitions, maxWidth, maxHeight) {
             if (p.y == possibleP1.y && p.x > possibleP1.x) {
                 // check if this is the "top" point in a line
                 var isTopPoint = false;
-                drawnLines.forEach(function(l) {
-                    if (l.p1 == p) {
-                        isTopPoint = true;
+                intersectionPoints.forEach( function(q) {
+                    if (q.x == p.x) {
+                        if (q.y > p.y) {
+                            isTopPoint = true;
+                        }
                     }
                 });
                 if (isTopPoint) {
@@ -185,7 +206,7 @@ function makeMondrian(numPartitions, maxWidth, maxHeight) {
             }
         });
         if (candidatesP.length == 0) {
-            console.log("No candidates for " + pointToString(possibleP1) + ", skipping this point");
+            console.log("No candidates along X for " + pointToString(possibleP1) + ", skipping this point");
             continue;
         }
         candidatesP.sort(function(a,b) {
@@ -209,9 +230,11 @@ function makeMondrian(numPartitions, maxWidth, maxHeight) {
         intersectionPoints.forEach( function(p) {
             if (_P.x == p.x && _P.y < p.y) {
                 var isRightPoint = false;
-                drawnLines.forEach(function(l) {
-                    if (l.p2 == p) {
-                        isRightPoint = true;
+                intersectionPoints.forEach( function(q) {
+                    if (q.y == _P.y) {
+                        if (q.x < _P.x) {
+                            isRightPoint = true;
+                        }
                     }
                 });
                 var alreadyInRectangles = false;
@@ -230,7 +253,7 @@ function makeMondrian(numPartitions, maxWidth, maxHeight) {
             }
         });
         if (candidatesP2.length == 0) {
-            console.log("No closing point corresponding to rectangle starting at " + pointToString(possibleP1));
+            console.log("No closing point corresponding to rectangle starting at " + pointToString(possibleP1) + ", with corner at " + pointToString(_P));
             continue;
         } else { 
             console.log(candidatesP2[0]);
@@ -244,8 +267,11 @@ function makeMondrian(numPartitions, maxWidth, maxHeight) {
     // all rectangles
     var colorChoices = ["red", "blue", "yellow"];
     for (var i = 0; i < smallestRectangles.length; i++) {
-        drawRectangle(container, smallestRectangles[i], colorChoices[Math.floor(Math.random() * colorChoices.length)]);
-        console.log("Rectangle at " + pointToString(smallestRectangles[i].p1) + " -- " + pointToString(smallestRectangles[i].p2));
+        var rect = smallestRectangles[i];
+        var avgPoint = {x: (rect.p1.x + rect.p2.x)/2, y: (rect.p2.y + rect.p1.y)/2};
+        addText(container, avgPoint, i+1);
+//         drawRectangle(container, smallestRectangles[i], colorChoices[Math.floor(Math.random() * colorChoices.length)]);
+//         console.log("Rectangle at " + pointToString(smallestRectangles[i].p1) + " -- " + pointToString(smallestRectangles[i].p2));
 //         break;
     }
 }
