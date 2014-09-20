@@ -86,6 +86,7 @@ function generateRandomPoint(limx, limy) {
 }
 
 function getDistance(point1, point2) {
+    console.log("Distance of " + pointToString(point1) + " to " + pointToString(point2));
     return Math.sqrt( Math.pow(point1.x - point2.x, 2) + Math.pow(point1.y - point2.y) );
 }
 
@@ -113,7 +114,7 @@ function comparePoints(a, b) {
     return a.x-b.x;
 }
 
-function makeMondrian(numPartitions, maxWidth, maxHeight) {
+function makeMondrian(numPartitions, maxWidth, maxHeight, minRectSide) {
     var container = d3.select(".mondrian").append("svg").attr("width", maxWidth).attr("height", maxHeight);
     var drawnLines = [];
     var intersectionPoints = [{x:0,y:0}, {x:maxWidth,y:0}, {x:maxWidth,y:maxHeight}];    // list of all points where two lines intersect
@@ -124,10 +125,10 @@ function makeMondrian(numPartitions, maxWidth, maxHeight) {
     var lowerLeft = {x: 0, y: maxHeight};
     var upperRight = {x: maxWidth, y: 0};
     var lowerRight = {x: maxWidth, y: maxHeight};
-    makeLine(container, {p1: upperLeft, p2: upperRight}, 4, "black");
-    makeLine(container, {p1: upperLeft, p2: lowerLeft}, 4, "black");
-    makeLine(container, {p1: lowerLeft, p2: lowerRight}, 4, "black");
-    makeLine(container, {p1: upperRight, p2: lowerRight}, 4, "black");
+    var borders = [ container.append("line").attr("x1", upperLeft.x).attr("y1", upperLeft.y).attr("x2", upperRight.x).attr("y2", upperRight.y).attr("stroke-width", 0).attr("stroke", "white"),
+                    container.append("line").attr("x1", upperLeft.x).attr("y1", upperLeft.y).attr("x2", lowerLeft.x).attr("y2", lowerLeft.y).attr("stroke-width", 0).attr("stroke", "white"),
+                    container.append("line").attr("x1", lowerLeft.x).attr("y1", lowerLeft.y).attr("x2", lowerRight.x).attr("y2", lowerRight.y).attr("stroke-width", 0).attr("stroke", "white"),
+                    container.append("line").attr("x1", upperRight.x).attr("y1", upperRight.y).attr("x2", lowerRight.x).attr("y2", lowerRight.y).attr("stroke-width", 0).attr("stroke", "white")];
     drawnLines.push({p1: upperLeft, p2: upperRight});
     drawnLines.push({p1: upperLeft, p2: lowerLeft});
     drawnLines.push({p1: lowerLeft, p2: lowerRight});
@@ -140,6 +141,23 @@ function makeMondrian(numPartitions, maxWidth, maxHeight) {
             line = makeVerticalLine(randomInt(0, maxWidth), maxHeight);
         } else {
             line = makeHorizontalLine(maxWidth, randomInt(0, maxHeight));        
+        }
+        var repick = false;
+        // check that we're not going to make any tiny-ass rectangles
+        intersectionPoints.forEach(function (p) {
+            if (!repick) {
+                console.log(getDistance(p, line.p1));
+                console.log(getDistance(p, line.p2));
+                if (    getDistance(p, line.p1) < minRectSide
+                    ||  getDistance(p, line.p2) < minRectSide) {
+                    repick = true;
+                    console.log(pointToString(p) + " is too close to " + pointToString(line.p1) + "|" + pointToString(line.p2));
+                }
+            }
+        });
+        if (repick) {
+            i--;
+            continue;
         }
         for (var i = 0; i < drawnLines.length; i++) {
             var previous_line = drawnLines[i];
@@ -165,13 +183,7 @@ function makeMondrian(numPartitions, maxWidth, maxHeight) {
     // sort intersectionPoints
     intersectionPoints.sort(comparePoints);
     console.log(intersectionPoints);
-    // debug -- draw points at each intersection
-    for (var i = 0; i < intersectionPoints.length; i++) {
-        var point = intersectionPoints[i];
-        container.append("circle").attr("cx", point.x).attr("cy", point.y).attr("r", 5);
-    }
 
-//     return;
     // a rectangle shall be defined as a pair of points, upper-left and lower-right 
     var smallestRectangles = [];
     var ignorePoints = [];
@@ -183,7 +195,6 @@ function makeMondrian(numPartitions, maxWidth, maxHeight) {
         smallestRectangles.forEach(function (p) { if (p.p1 == possibleP1) contains = true; } );
         if (contains) {
             ignorePoints.push(possibleP1);
-            console.log("Already have rectangle starting at " + pointToString(possibleP1) + ", skipping");
             continue;
         }
 
@@ -206,7 +217,6 @@ function makeMondrian(numPartitions, maxWidth, maxHeight) {
             }
         });
         if (candidatesP.length == 0) {
-            console.log("No candidates along X for " + pointToString(possibleP1) + ", skipping this point");
             continue;
         }
         candidatesP.sort(function(a,b) {
@@ -217,7 +227,6 @@ function makeMondrian(numPartitions, maxWidth, maxHeight) {
             }
         });
         var _P = candidatesP[0];
-        console.log("Closest point to " + pointToString(possibleP1) + " was " + pointToString(_P));
 
         /*  from _P, find another point P2 such that:
                 1. _P.x == P2.x
@@ -255,8 +264,6 @@ function makeMondrian(numPartitions, maxWidth, maxHeight) {
         if (candidatesP2.length == 0) {
             console.log("No closing point corresponding to rectangle starting at " + pointToString(possibleP1) + ", with corner at " + pointToString(_P));
             continue;
-        } else { 
-            console.log(candidatesP2[0]);
         }
 
         // okay, we found it
@@ -264,16 +271,33 @@ function makeMondrian(numPartitions, maxWidth, maxHeight) {
         smallestRectangles.push(rect);
     }
 
-    // all rectangles
+    // color up to 3 of the rectangles
     var colorChoices = ["red", "blue", "yellow"];
     for (var i = 0; i < smallestRectangles.length; i++) {
         var rect = smallestRectangles[i];
-        var avgPoint = {x: (rect.p1.x + rect.p2.x)/2, y: (rect.p2.y + rect.p1.y)/2};
-        addText(container, avgPoint, i+1);
-//         drawRectangle(container, smallestRectangles[i], colorChoices[Math.floor(Math.random() * colorChoices.length)]);
-//         console.log("Rectangle at " + pointToString(smallestRectangles[i].p1) + " -- " + pointToString(smallestRectangles[i].p2));
-//         break;
+        if ( Math.random() > (1.0 - colorChoices.length / smallestRectangles.length ) ) {
+            var avgPoint = {x: (rect.p1.x + rect.p2.x)/2, y: (rect.p2.y + rect.p1.y)/2};
+            var color = colorChoices[Math.floor(Math.random() * colorChoices.length)];
+            console.log("Coloring " + color);
+            drawRectangle(container, smallestRectangles[i], color);
+//             addText(container, avgPoint, i+1);
+            var index = colorChoices.indexOf(color);
+            colorChoices.splice(index, 10);
+        }
     }
+
+    // touch up -- redraw the border lines
+    var i = 0;
+//     drawnLines.forEach( function(line) {
+//         if (i >= 4) {
+//             makeLine(container, line.p1, line.p2, 4, "black");
+//         }
+//         i++;
+//     } );
+
+    borders.forEach( function(a) {
+        a.remove();
+    });
 }
 
 function makeLine(lineContainer, point1, point2, width, color) {
@@ -288,6 +312,6 @@ function makeLine(lineContainer, point1, point2, width, color) {
     </div>
 </body>
 <script>
-makeMondrian(randomInt(4, 8), maxWidth, maxHeight);
+makeMondrian(randomInt(6, 16), maxWidth, maxHeight, 40);
 
 </script>
