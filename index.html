@@ -2,7 +2,7 @@
 <head>
     <style>
         svg {
-            border: 4px solid black;
+/*             border: 4px solid black; */
         }
     </style>
 </head>
@@ -86,7 +86,7 @@ function generateRandomPoint(limx, limy) {
 }
 
 function getDistance(point1, point2) {
-    console.log("Distance of " + pointToString(point1) + " to " + pointToString(point2));
+//     console.log("Distance of " + pointToString(point1) + " to " + pointToString(point2));
     return Math.sqrt( Math.pow(point1.x - point2.x, 2) + Math.pow(point1.y - point2.y) );
 }
 
@@ -125,10 +125,14 @@ function makeMondrian(numPartitions, maxWidth, maxHeight, minRectSide) {
     var lowerLeft = {x: 0, y: maxHeight};
     var upperRight = {x: maxWidth, y: 0};
     var lowerRight = {x: maxWidth, y: maxHeight};
-    var borders = [ container.append("line").attr("x1", upperLeft.x).attr("y1", upperLeft.y).attr("x2", upperRight.x).attr("y2", upperRight.y).attr("stroke-width", 0).attr("stroke", "white"),
-                    container.append("line").attr("x1", upperLeft.x).attr("y1", upperLeft.y).attr("x2", lowerLeft.x).attr("y2", lowerLeft.y).attr("stroke-width", 0).attr("stroke", "white"),
-                    container.append("line").attr("x1", lowerLeft.x).attr("y1", lowerLeft.y).attr("x2", lowerRight.x).attr("y2", lowerRight.y).attr("stroke-width", 0).attr("stroke", "white"),
-                    container.append("line").attr("x1", upperRight.x).attr("y1", upperRight.y).attr("x2", lowerRight.x).attr("y2", lowerRight.y).attr("stroke-width", 0).attr("stroke", "white")];
+    makeLine(container, upperLeft, upperRight, 4, "white");
+    makeLine(container, upperLeft, lowerLeft, 4, "white");
+    makeLine(container, lowerLeft, lowerRight, 4, "white");
+    makeLine(container, upperRight, lowerRight, 4, "white");
+//     var borders = [ container.append("line").attr("x1", upperLeft.x).attr("y1", upperLeft.y).attr("x2", upperRight.x).attr("y2", upperRight.y).attr("stroke-width", 0).attr("stroke", "white"),
+//                     container.append("line").attr("x1", upperLeft.x).attr("y1", upperLeft.y).attr("x2", lowerLeft.x).attr("y2", lowerLeft.y).attr("stroke-width", 0).attr("stroke", "white"),
+//                     container.append("line").attr("x1", lowerLeft.x).attr("y1", lowerLeft.y).attr("x2", lowerRight.x).attr("y2", lowerRight.y).attr("stroke-width", 0).attr("stroke", "white"),
+//                     container.append("line").attr("x1", upperRight.x).attr("y1", upperRight.y).attr("x2", lowerRight.x).attr("y2", lowerRight.y).attr("stroke-width", 0).attr("stroke", "white")];    
     drawnLines.push({p1: upperLeft, p2: upperRight});
     drawnLines.push({p1: upperLeft, p2: lowerLeft});
     drawnLines.push({p1: lowerLeft, p2: lowerRight});
@@ -146,8 +150,8 @@ function makeMondrian(numPartitions, maxWidth, maxHeight, minRectSide) {
         // check that we're not going to make any tiny-ass rectangles
         intersectionPoints.forEach(function (p) {
             if (!repick) {
-                console.log(getDistance(p, line.p1));
-                console.log(getDistance(p, line.p2));
+//                 console.log(getDistance(p, line.p1));
+//                 console.log(getDistance(p, line.p2));
                 if (    getDistance(p, line.p1) < minRectSide
                     ||  getDistance(p, line.p2) < minRectSide) {
                     repick = true;
@@ -182,7 +186,7 @@ function makeMondrian(numPartitions, maxWidth, maxHeight, minRectSide) {
 
     // sort intersectionPoints
     intersectionPoints.sort(comparePoints);
-    console.log(intersectionPoints);
+//     console.log(intersectionPoints);
 
     // a rectangle shall be defined as a pair of points, upper-left and lower-right 
     var smallestRectangles = [];
@@ -272,6 +276,7 @@ function makeMondrian(numPartitions, maxWidth, maxHeight, minRectSide) {
     }
 
     // color up to 3 of the rectangles
+    alert("wait");
     var colorChoices = ["red", "blue", "yellow"];
     for (var i = 0; i < smallestRectangles.length; i++) {
         var rect = smallestRectangles[i];
@@ -280,14 +285,13 @@ function makeMondrian(numPartitions, maxWidth, maxHeight, minRectSide) {
             var color = colorChoices[Math.floor(Math.random() * colorChoices.length)];
             console.log("Coloring " + color);
             drawRectangle(container, smallestRectangles[i], color);
-//             addText(container, avgPoint, i+1);
             var index = colorChoices.indexOf(color);
             colorChoices.splice(index, 10);
         }
     }
 
     // touch up -- redraw the border lines
-    var i = 0;
+//     var i = 0;
 //     drawnLines.forEach( function(line) {
 //         if (i >= 4) {
 //             makeLine(container, line.p1, line.p2, 4, "black");
@@ -295,12 +299,13 @@ function makeMondrian(numPartitions, maxWidth, maxHeight, minRectSide) {
 //         i++;
 //     } );
 
-    borders.forEach( function(a) {
-        a.remove();
-    });
+//     borders.forEach( function(a) {
+//         a.remove();
+//     });
 }
 
 function makeLine(lineContainer, point1, point2, width, color) {
+    console.log(pointToString(point1) + " | " + pointToString(point2) + " | " + color);
     lineContainer.append("line").attr("x1", point1.x).attr("y1", point1.y).attr("x2", point2.x).attr("y2", point2.y)
                                 .attr("stroke-width", width).attr("stroke", color);
     return lineContainer;
