@@ -1,4 +1,6 @@
 // import D3
+var debug = true;
+
 var imported = document.createElement('script');
 imported.src = 'd3.min.js';
 document.head.appendChild(imported);
@@ -91,9 +93,13 @@ function getDistance(point1, point2) {
 function drawRectangle(container, rect, color) {
     var xStart = rect.p1.x;
     var yStart = rect.p1.y;
-    var width = xStart + rect.p2.x - 2;
-    var height = yStart + rect.p2.y;
+    var width = Math.abs(rect.p2.x - xStart);
+    var height = Math.abs(rect.p2.y - yStart);
     container.append("rect").attr("x", xStart).attr("y", yStart).attr("width", width).attr("height", height).attr("fill", color);
+    if (debug) {
+        var p_mid = {x: (rect.p1.x + rect.p2.x) / 2, y: (rect.p1.y + rect.p2.y) / 2};
+        addText(container, p_mid, pointToString(rect.p1) + "|" + pointToString(rect.p2));
+    }
 }
 
 /**
@@ -172,6 +178,7 @@ function makeMondrian(numPartitions, maxWidth, maxHeight, minRectSide) {
         intersectionPoints.push(line.p1);
         intersectionPoints.push(line.p2);
     }
+
 
     // sort intersectionPoints
     intersectionPoints.sort(comparePoints);
@@ -276,6 +283,18 @@ function makeMondrian(numPartitions, maxWidth, maxHeight, minRectSide) {
         }
     }
 
+    // redraw lines
+    var i = 0;
+    drawnLines.forEach( function (line) {
+        makeLine(container, line.p1, line.p2, 4, "black");
+    });
+
+    if (debug) {
+        intersectionPoints.forEach( function (p) {
+            container.append("circle").attr("cx", p.x).attr("cy", p.y).attr("r", 10);
+            addText(container, p, pointToString(p));
+        });
+    }
 }
 
 function makeLine(lineContainer, point1, point2, width, color) {
