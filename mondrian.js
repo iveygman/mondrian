@@ -179,105 +179,105 @@ function makeMondrian(numPartitions, maxWidth, maxHeight, minRectSide) {
     // sort intersectionPoints
     intersectionPoints.sort(comparePoints);
 
-    // a rectangle shall be defined as a pair of points, upper-left and lower-right 
+    /*
+        a rectangle shall be defined as a pair of points, upper-left and lower-right
+            P1----------P3
+            |           |
+            |           |
+            |           |
+            |           |
+            P4----------P2
+        We'll only store P1 and P2, but we need to know all 4
+     */
     var smallestRectangles = [];
     var ignorePoints = [];
     for (var i = 0; i < intersectionPoints.length; i++) {
-        var possibleP1 = intersectionPoints[i];
+        var candidateP1 = intersectionPoints[i];
 
         // check if already in smallestRectangles
         var contains = false;
-        smallestRectangles.forEach(function (p) { if (p.p1 == possibleP1) contains = true; } );
+        smallestRectangles.forEach(function (p) { if (p.p1 == candidateP1) contains = true; } );
         if (contains) {
-            ignorePoints.push(possibleP1);
+            ignorePoints.push(candidateP1);
             continue;
         }
-
-        // find next closest intersection point p such that possibleP1.y == p.y and possibleP1.x < p.x
-        var candidatesP = [];
-        intersectionPoints.forEach( function(p) {
-            if (p.y == possibleP1.y && p.x > possibleP1.x) {
-                // check if this is the "top" point in a line
-                var isTopPoint = false;
-                intersectionPoints.forEach( function(q) {
-                    if (q.x == p.x) {
-                        if (q.y > p.y) {
-                            isTopPoint = true;
-                        }
-                    }
-                });
-                if (isTopPoint) {
-                    candidatesP.push( p );
+        
+        // there must be a point, P4, in intersectionPoints such that P1.x == P4.x
+        // otherwise, there's no way this rectangle can close!
+        var possibleP4s = [];
+        intersectionPoints.forEach( function (p) {
+            if (p != candidateP1) {
+                if (p.x == candidateP1.x) {
+                    possibleP4s.push(p);
                 }
             }
         });
-        if (candidatesP.length == 0) {
+        if (possibleP4s.length == 0) {
+            if (debug) {
+                console.log("No corresponding P4 for " + pointToString(candidateP1));
+            }
             continue;
         }
-        candidatesP.sort(function(a,b) {
-            if (Math.abs(a.x - possibleP1.x) > Math.abs(b.x - possibleP1.x)) {
+        // okay! now find P3 such that P3.y == P1.y and P3.x > P1.x
+        // otherwise, you can't find P2!
+        var candidatesP3 = [];
+        intersectionPoints.forEach( function (p) {
+            if (p.y == candidateP1.y) {
+                if (p.x > candidateP1.x) {
+                    candidatesP3.push(p);
+                }
+            }
+        });
+        if (candidatesP3.length == 0) {
+            if (debug) {
+                console.log("No corresponding P3 for " + pointToString(candidateP1));
+            }
+            continue;
+        }
+        // sort such that candidatesP3[0] is the closest point to candidateP1
+        candidatesP3.sort(function(a,b) {
+            if (Math.abs(a.x - candidateP1.x) > Math.abs(b.x - candidateP1.x)) {
                 return 1;
             } else {
                 return -1;
             }
         });
-        var _P = candidatesP[0];
+        var P3 = candidatesP3[0];
+        // since we got here, we know P1 is a valid point
+        var P1 = candidateP1;
 
-        /*  from _P, find another point P2 such that:
-                1. _P.x == P2.x
-                2. P2 is not already the second point in any rectangle
-                3. P2 is the right-most point on an existing line
-                4. _P.y < P2.y
-                5. P2 is the closest possible point to _P given conditions 1 through 4
+        /*
+            Now find P2 such that:
+                * P2.x == P3.x
+                * P2.y >  P3.y
+                * ∃ P4: P4.x < P2.x and P4.y == P2.y and P1.x == P4.x
          */
         var candidatesP2 = [];
-        var done = false;
-        // find all points below the possible midpoint
-        intersectionPoints.forEach( function(p) {
-            // point must be directly below me
-            if (_P.x == p.x && _P.y < p.y) {
-                candidatesP2.push(p);
-            }
-        });
-        if (candidatesP2.length == 0) {
-            console.log("No closing point corresponding to rectangle starting at " + pointToString(possibleP1) + ", with corner at " + pointToString(_P) + " (couldn't find points below)");
-            continue;
-        }
-        // filter 
-        var filteredCandidatesP2 = [];
-        for (var k = 0; k < candidatesP2.length; k++) {
-            var q = candidatesP2[k];
-            intersectionPoints.forEach( function(p) {
-                if (q.x > p.x && p.y == q.y) {
-                    filteredCandidatesP2.push(q);
+        intersectionPoints.forEach( function(p2) {
+            if (p2.x == P3.x && p2.y > P3.y) {
+                var P4Exists = false;
+                // ∃ P4: P4.x < P2.x and P4.y == P2.y and P1.x == P4.x
+                intersectionPoints.forEach( function(p4) {
+                    if (p4.x < p2.x && p4.y == p2.y && p4.x == P1.x) {
+                        P4Exists = true;
+                    }
+                });
+                if (P4Exists) {
+                    candidatesP2.push(p2);
                 }
-            });
-        }
-//         candidatesP2 = filteredCandidatesP2;
-        // sort
-        candidatesP2.sort(function(a,b) {
-            if (Math.abs(a.x - _P.x) > Math.abs(b.x - _P.x)) {
-                return 1;
-            } else {
-                return -1;
             }
         });
+        var P2 = null;
         if (candidatesP2.length == 0) {
-            console.log("No closing point corresponding to rectangle starting at " + pointToString(possibleP1) + ", with corner at " + pointToString(_P));
+            if (debug) {
+                console.log("No corresponding P2 for " + pointToString(P1));
+            }
             continue;
+        } else {
+            P2 = candidatesP2[0];
         }
-        if (debug) {
-            var s = "";
-            candidatesP2.forEach( function (p) {
-                s += pointToString(p) + ", ";
-            });
-            console.log("Candidates for endpoint: " + s);
-        }
-        var endPoint = candidatesP2[0];
-        console.log(pointToString(possibleP1) + " --> " + pointToString(_P) + " --> " + pointToString(endPoint));
-
-        // okay, we found it
-        var rect = {p1: possibleP1, p2: endPoint};
+        console.log(pointToString(P1) + " --> " + pointToString(P3) + " --> " + pointToString(P2));
+        var rect = {p1: P1, p2: P2};
         smallestRectangles.push(rect);
     }
 
@@ -290,7 +290,6 @@ function makeMondrian(numPartitions, maxWidth, maxHeight, minRectSide) {
             var color = colorChoices[Math.floor(Math.random() * colorChoices.length)];
             drawRectangle(container, smallestRectangles[i], color);
             var index = colorChoices.indexOf(color);
-            colorChoices.splice(index, 10);
         }
     }
 
