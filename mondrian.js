@@ -1,5 +1,7 @@
 // import D3
-var debug = true;
+var debug = false;
+var probabilityOfColoration = 0.25;
+
 
 var imported = document.createElement('script');
 imported.src = 'd3.min.js';
@@ -119,6 +121,8 @@ function makeMondrian(numPartitions, maxWidth, maxHeight, minRectSide) {
     var drawnLines = [];
     var intersectionPoints = [{x:0,y:0}, {x:maxWidth,y:0}, {x:maxWidth,y:maxHeight}];    // list of all points where two lines intersect
     var line;
+    var minimumToColor = 1;
+    var maximumToColor = Math.floor(numPartitions / 3);
 
     // draw the border
     var upperLeft = {x: 0, y: 0};
@@ -276,16 +280,32 @@ function makeMondrian(numPartitions, maxWidth, maxHeight, minRectSide) {
         } else {
             P2 = candidatesP2[0];
         }
-        console.log(pointToString(P1) + " --> " + pointToString(P3) + " --> " + pointToString(P2));
+        if (debug) {
+            console.log(pointToString(P1) + " --> " + pointToString(P3) + " --> " + pointToString(P2));
+        }
         var rect = {p1: P1, p2: P2};
         smallestRectangles.push(rect);
     }
 
     // color up to 3 of the rectangles
     var colorChoices = ["red", "blue", "yellow"];
+    // randomly choose some rectangles to color
+    var toColor = new Array(smallestRectangles.length);
+    var toColorChosen = false;
+    while (!toColorChosen) {
+        var count = 0;
+        for (var i = 0; i < toColor.length; i++) {
+            toColor[i] = (Math.random() > probabilityOfColoration);
+            if (toColor[i]) {
+                count++;
+            }
+        }
+        toColorChosen = count >= minimumToColor && count <= maximumToColor;
+    }
+    
     for (var i = 0; i < smallestRectangles.length; i++) {
         var rect = smallestRectangles[i];
-        if ( Math.random() > (1.0 - colorChoices.length / smallestRectangles.length ) ) {
+        if ( toColor[i] ) {
             var avgPoint = {x: (rect.p1.x + rect.p2.x)/2, y: (rect.p2.y + rect.p1.y)/2};
             var color = colorChoices[Math.floor(Math.random() * colorChoices.length)];
             drawRectangle(container, smallestRectangles[i], color);
