@@ -144,16 +144,12 @@ function makeMondrian(numPartitions, maxWidth, maxHeight, minRectSide) {
             } else {
                 line = makeHorizontalLine(maxWidth, randomInt(0, maxHeight));        
             }
-            if (repick) {
-                console.log("Repicked " + pointToString(line.p1) + "," + pointToString(line.p2));
-            }
             repick = false;
             // check that we're not going to make any tiny-ass rectangles
             intersectionPoints.forEach(function (p) {
                 if (!repick) {
                     if (getDistance(p, line.p1) < minRectSide ||  getDistance(p, line.p2) < minRectSide) {
                         repick = true;
-                        console.log(pointToString(p) + " is too close to " + pointToString(line.p1) + "|" + pointToString(line.p2));
                     }
                 }
             });
@@ -235,23 +231,29 @@ function makeMondrian(numPartitions, maxWidth, maxHeight, minRectSide) {
                 5. P2 is the closest possible point to _P given conditions 1 through 4
          */
         var candidatesP2 = [];
+        var done = false;
+        // find all points below the possible midpoint
         intersectionPoints.forEach( function(p) {
+            // point must be directly below me
             if (_P.x == p.x && _P.y < p.y) {
-                var isRightPoint = false;
-                intersectionPoints.forEach( function(q) {
-                    if (q.y == _P.y) {
-                        if (q.x < _P.x) {
-                            isRightPoint = true;
-                        }
-                    }
-                });
-                var alreadyInRectangles = false;
-                smallestRectangles.forEach(function(r) { if (r.p2 == p) alreadyInRectangles = true; } );
-                if (!alreadyInRectangles && isRightPoint) {
-                    candidatesP2.push(p)
-                }
+                candidatesP2.push(p);
             }
         });
+        if (candidatesP2.length == 0) {
+            console.log("No closing point corresponding to rectangle starting at " + pointToString(possibleP1) + ", with corner at " + pointToString(_P) + " (couldn't find points below)");
+            continue;
+        }
+        // filter 
+        var filteredCandidatesP2 = [];
+        for (var k = 0; k < candidatesP2.length; k++) {
+            var q = candidatesP2[k];
+            intersectionPoints.forEach( function(p) {
+                if (q.x > p.x && p.y == q.y) {
+                    filteredCandidatesP2.push(q);
+                }
+            });
+        }
+//         candidatesP2 = filteredCandidatesP2;
         // sort
         candidatesP2.sort(function(a,b) {
             if (Math.abs(a.x - _P.x) > Math.abs(b.x - _P.x)) {
@@ -264,9 +266,18 @@ function makeMondrian(numPartitions, maxWidth, maxHeight, minRectSide) {
             console.log("No closing point corresponding to rectangle starting at " + pointToString(possibleP1) + ", with corner at " + pointToString(_P));
             continue;
         }
+        if (debug) {
+            var s = "";
+            candidatesP2.forEach( function (p) {
+                s += pointToString(p) + ", ";
+            });
+            console.log("Candidates for endpoint: " + s);
+        }
+        var endPoint = candidatesP2[0];
+        console.log(pointToString(possibleP1) + " --> " + pointToString(_P) + " --> " + pointToString(endPoint));
 
         // okay, we found it
-        var rect = {p1: possibleP1, p2: candidatesP2[0]};
+        var rect = {p1: possibleP1, p2: endPoint};
         smallestRectangles.push(rect);
     }
 
@@ -286,7 +297,10 @@ function makeMondrian(numPartitions, maxWidth, maxHeight, minRectSide) {
     // redraw lines
     var i = 0;
     drawnLines.forEach( function (line) {
-        makeLine(container, line.p1, line.p2, 4, "black");
+        if (i >= 4) {
+            makeLine(container, line.p1, line.p2, 4, "black");
+        }
+        i++;
     });
 
     if (debug) {
