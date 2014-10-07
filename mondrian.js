@@ -1,6 +1,6 @@
 // import D3
 var debug = false;
-var probabilityOfColoration = 0.25;
+var probabilityOfColoration = 0.75;
 
 
 var imported = document.createElement('script');
